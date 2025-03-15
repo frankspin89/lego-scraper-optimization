@@ -1,0 +1,387 @@
+{
+  "name": "CRAWLER 2 - LEGO.COM - Batch Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://{{ $json.worker_hostname }}:8000/crawl",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"urls\": [\"{{ $json.url_to_crawl }}\"],\n  \"browser_config\": {\n    \"type\": \"BrowserConfig\",\n    \"params\": {\n      \"headless\": true,\n      \"disable_images\": true,\n      \"args\": [\n        \"--disable-gpu\",\n        \"--disable-dev-shm-usage\",\n        \"--disable-setuid-sandbox\",\n        \"--no-sandbox\",\n        \"--disable-accelerated-2d-canvas\",\n        \"--disable-extensions\"\n      ]\n    }\n  },\n  \"crawler_config\": {\n    \"type\": \"CrawlerRunConfig\",\n    \"proxy\": \"http://user-{{ $env.OXYLABS_USERNAME }}:{{ $env.OXYLABS_PASSWORD }}@dc.oxylabs.io:8000\",\n    \"params\": {\n      \"remove_overlay_elements\": true,\n      \"verbose\": true,\n      \"word_count_threshold\": 10,\n      \"check_robots_txt\": false,\n      \"delay_before_return_html\": 1.0,\n      \"cache_mode\": \"aggressive\",\n      \"js_code\": \"\",\n      \"extraction_strategy\": {\n        \"type\": \"LLMExtractionStrategy\",\n        \"params\": {\n          \"instruction\": \"Extract detailed information about this LEGO product. Focus on product specifications, features, pricing, and availability. Look specifically for dimensions, minifigure count, and VIP points in the specifications section. Extract all high-quality product images from srcset attributes in the page. For any fields that don't apply to this specific product, return null.\",\n          \"llm_config\": {\n            \"type\": \"LLMConfig\",\n            \"params\": {\n              \"provider\": \"deepseek/deepseek-chat\",\n              \"temperature\": 0.1,\n              \"max_tokens\": 1200\n            }\n          },\n          \"schema\": {\n            \"type\": \"dict\",\n            \"value\": {\n              \"output_format\": \"json\",\n              \"fields\": {\n                \"product_name\": \"The full name of the LEGO product\",\n                \"product_id\": \"The LEGO product ID number (also called Item number)\",\n                \"price\": \"The current price including currency\",\n                \"piece_count\": \"The number of LEGO pieces in the set\",\n                \"age_recommendation\": \"The recommended age range for this set\",\n                \"dimensions\": {\n                  \"height\": \"Height of the built model (e.g., 17\\\" or 41cm). Look in product specifications section for 'H:' or 'Height:' followed by measurements.\",\n                  \"width\": \"Width of the built model (e.g., 10\\\" or 25cm). Look in product specifications section for 'W:' or 'Width:' followed by measurements.\",\n                  \"depth\": \"Depth of the built model (e.g., 10\\\" or 25cm). Look in product specifications section for 'D:' or 'Depth:' followed by measurements.\"\n                },\n                \"minifigures\": \"Number of minifigures included in the set. Look for 'Minifigures: X' in the specifications section, or count the minifigures mentioned in the product description.\",\n                \"vip_points\": \"Number of LEGO Insiders Points earned from purchasing this set. Look for 'LEGO® Insiders Points: X' or similar text in the specifications section.\",\n                \"product_description\": \"A summary of the product description and key features from the main description area\",\n                \"product_specs\": \"Extract the full product specifications found in the 'Productgegevens' or 'Product Details' accordion section\",\n                \"theme\": \"The LEGO theme this set belongs to (e.g., City, Star Wars, NINJAGO, etc.)\",\n                \"availability_status\": \"Current availability status\",\n                \"rating\": \"Customer rating if available\",\n                \"special_features\": \"Any special features or unique selling points\",\n                \"special_promotions\": \"Any special promotions or limited-time offers mentioned on the product page\",\n                \"image_urls\": \"List of all high-quality product image URLs from the page. Extract URLs from srcset attributes, picture elements, image galleries, and product media sections. For each image, select the highest resolution version available. Look for URLs containing 'cdn.lego.com' and '/assets/' paths. If multiple image sizes are available, prefer the largest ones (typically containing 'width=800' or similar).\",\n                \"language\": \"Detect the language of the page (e.g., English, Dutch, etc.)\"\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -3680,
+        -3260
+      ],
+      "id": "861c3e5b-41bd-46f4-926e-e0c2108803fb",
+      "name": "HTTP Request (Crawl4AI)",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "oaRp4HdvJ9yftyZ7",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -5160,
+        -3195
+      ],
+      "id": "851c249e-9c60-4a8a-b866-5c4d185e60dd",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "lego_url_pairs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "12723336-f292-4f48-a87a-cfe65b457a0d",
+      "name": "Update Record1",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2740,
+        -3260
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SgPxJElhTwCL12ca",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"id\": {{ $json.id || 'null' }},\n  \"product_id\": {{ JSON.stringify($json.product_id || '') }},\n  \"{{ $json.language || 'unknown' }}_scraped_html\": {{ JSON.stringify($json.results && $json.results[0] && $json.results[0].cleaned_html ? $json.results[0].cleaned_html : '') }},\n  \"{{ $json.language || 'unknown' }}_scraped_markdown\": {{ JSON.stringify($json.results && $json.results[0] && $json.results[0].markdown && $json.results[0].markdown.raw_markdown ? $json.results[0].markdown.raw_markdown : '') }},\n  \"{{ $json.language || 'unknown' }}_scraped_metadata\": {{ JSON.stringify($json.results && $json.results[0] && $json.results[0].metadata ? $json.results[0].metadata : {}) }},\n  \"{{ $json.language || 'unknown' }}_extracted_data\": {{ JSON.stringify($json.results && $json.results[0] && $json.results[0].extracted_content ? $json.results[0].extracted_content : {}) }},\n  \"{{ $json.language || 'unknown' }}_images\": {{ JSON.stringify($json.results && $json.results[0] && $json.results[0].media && $json.results[0].media.images ? $json.results[0].media.images.map(img => img.src) : []) }},\n  \"{{ $json.language || 'unknown' }}_crawl_status\": \"completed\",\n  \"scraped_at\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3100,
+        -3260
+      ],
+      "id": "40864f3c-6a9d-407a-8bc3-0f03dc62d113",
+      "name": "Prepare Success Data1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/claim_batch_urls",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"worker_id\": \"{{ $json.worker_hostname }}\",\n  \"batch_size\": 5\n}",
+        "options": {}
+      },
+      "id": "b1168daf-cee9-4647-9ae8-2796ccbb64a9",
+      "name": "Claim Batch URLs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -4500,
+        -3270
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "oaRp4HdvJ9yftyZ7",
+          "name": "Header Auth account"
+        },
+        "supabaseApi": {
+          "id": "SgPxJElhTwCL12ca",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// We need a function to claim a pending URL for processing\n// This will be done via the raw SQL in Supabase node\n\n// Get the current iteration from the current workflow context\n// If we can't get it from the current context, use a default value of 1\nlet currentIteration = 1;\nlet workerHostname = \"crawl-worker-2\"; // Default fallback\n\ntry {\n  // Try to get values from the input items if possible\n  if (items && items.length > 0 && items[0].json) {\n    if (items[0].json.iteration) {\n      currentIteration = items[0].json.iteration;\n    }\n    \n    if (items[0].json.worker_hostname) {\n      workerHostname = items[0].json.worker_hostname;\n    }\n  }\n} catch (error) {\n  console.log('Could not get values from input, using defaults');\n}\n\n// Return a dummy item to continue to the SQL node\nreturn [\n  {\n    json: {\n      worker_hostname: workerHostname,\n      iteration: currentIteration,\n      claim_time: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4720,
+        -3270
+      ],
+      "id": "77dc34f9-8091-4900-a039-10381635b1fb",
+      "name": "Prepare for Claim1"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"worker_hostname\": \"crawl-worker-2\",\n  \"site_type\": \"lego_official\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4940,
+        -3195
+      ],
+      "id": "7380a9ca-c5cf-4635-b6e8-d1b3fa1a6f2e",
+      "name": "Set Worker Config1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle batch of items instead of a single item\nconst result = [];\n\n// API now returns an array of items - process each one in the batch\nconst items = $input.all();\nif (!items || items.length === 0) {\n  return [{\n    json: {\n      found_item: false,\n      iteration: 1,\n      worker_hostname: \"crawl-worker-2\",\n      site_type: \"lego_official\"\n    }\n  }];\n}\n\nconst siteType = \"lego_official\";\nconst workerHostname = \"crawl-worker-2\";\nconst currentIteration = 1;\n\n// Process each item in the batch\nfor (const batchItem of items) {\n  const item = batchItem.json;\n  console.log(`Found item to process: ${item.product_id} (ID: ${item.id})`);\n  \n  // Process Dutch URL if needed\n  if (\n    (item.dutch_crawl_status === 'pending' || !item.dutch_crawl_status) && \n    item.dutch_url && \n    item.dutch_url.trim() !== ''\n  ) {\n    console.log('Will process Dutch URL:', item.dutch_url);\n    result.push({\n      json: {\n        ...item,\n        language: 'dutch',\n        url_to_crawl: item.dutch_url,\n        found_item: true,\n        iteration: currentIteration,\n        worker_hostname: workerHostname,\n        site_type: siteType\n      }\n    });\n  }\n  \n  // Process English URL if needed\n  if (\n    (item.english_crawl_status === 'pending' || !item.english_crawl_status) && \n    item.english_url && \n    item.english_url.trim() !== ''\n  ) {\n    console.log('Will process English URL:', item.english_url);\n    result.push({\n      json: {\n        ...item,\n        language: 'english',\n        url_to_crawl: item.english_url,\n        found_item: true,\n        iteration: currentIteration,\n        worker_hostname: workerHostname,\n        site_type: siteType\n      }\n    });\n  }\n}\n\n// If no languages need processing, mark as not found\nif (result.length === 0) {\n  console.log('No languages need processing for these items');\n  return [{\n    json: {\n      found_item: false,\n      iteration: currentIteration,\n      // Pass through the worker info even for not-found items\n      worker_hostname: workerHostname,\n      site_type: siteType\n    }\n  }];\n}\n\nconsole.log(`Will process ${result.length} language(s) for this batch`);\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4280,
+        -3260
+      ],
+      "id": "67622f76-1dcc-4b74-a3f0-e88fb596e7f7",
+      "name": "Generate Language Items"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"id\": \"{{ $json.id }}\",\n  \"product_id\": \"{{ $json.product_id }}\",\n  \"language\": \"{{ $json.language }}\",\n  \"url_to_crawl\": \"{{ $json.url_to_crawl }}\",\n  \"worker_hostname\": \"{{ $json.worker_hostname }}\",\n  \"site_type\": \"{{ $json.site_type }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4000,
+        -3260
+      ],
+      "id": "118e559a-289b-4b8f-b0ca-fea7fd2425ee",
+      "name": "Set data node"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f0349d82-ae29-4c6a-bfbc-f12b2bd49f32",
+              "name": "success",
+              "value": "={{ $json.success }}",
+              "type": "boolean"
+            },
+            {
+              "id": "8848cffb-c106-42fa-9f9a-55c0942da308",
+              "name": "results[0]",
+              "value": "={{ $json.results[0] }}",
+              "type": "object"
+            },
+            {
+              "id": "b9b72993-d1a7-4c25-b62e-e9d02ad0cb96",
+              "name": "id",
+              "value": "={{ $('Set data node').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "fc41a2fe-56c6-4e14-b825-50354e9d2366",
+              "name": "product_id",
+              "value": "={{ $('Set data node').item.json.product_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a186e36b-ce0c-4457-b26d-4f57dfd1028b",
+              "name": "language",
+              "value": "={{ $('Set data node').item.json.language }}",
+              "type": "string"
+            },
+            {
+              "id": "8bac2ed3-a87b-4def-a901-00b8776e94bd",
+              "name": "url_to_crawl",
+              "value": "={{ $('Set data node').item.json.url_to_crawl }}",
+              "type": "string"
+            },
+            {
+              "id": "be7a4b89-9fbf-48f6-8fbb-1c9251fdfb61",
+              "name": "worker_hostname",
+              "value": "={{ $('Set data node').item.json.worker_hostname }}",
+              "type": "string"
+            },
+            {
+              "id": "cbe79c20-1098-440f-b8a2-e99fac6168c7",
+              "name": "site_type",
+              "value": "={{ $('Set data node').item.json.site_type }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3360,
+        -3260
+      ],
+      "id": "96374942-fe67-4b89-b48f-9b6b6a3654b7",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request (Crawl4AI)": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Worker Config1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Record1": {
+      "main": [
+        [
+          {
+            "node": "Set Worker Config1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Success Data1": {
+      "main": [
+        [
+          {
+            "node": "Update Record1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim Batch URLs": {
+      "main": [
+        [
+          {
+            "node": "Generate Language Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for Claim1": {
+      "main": [
+        [
+          {
+            "node": "Claim Batch URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Worker Config1": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Claim1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Language Items": {
+      "main": [
+        [
+          {
+            "node": "Set data node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set data node": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Crawl4AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "any",
+    "errorWorkflow": "",
+    "saveExecutionProgress": true,
+    "maxExecutionTimeout": 7200
+  },
+  "versionId": "2f8b51e6-8d06-42c8-84cf-4b57a34c95bd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0a90b3d400d903e2ce4a7c4c6de36554190e72e7c1071842cc653f847106a5c0"
+  },
+  "id": "WpZZ1ToT3P1O8fYm",
+  "tags": []
+}
