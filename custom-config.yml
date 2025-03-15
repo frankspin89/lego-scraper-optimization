@@ -1,0 +1,64 @@
+# Application Configuration
+app:
+  title: "Crawl4AI API"
+  version: "1.0.0"
+  host: "0.0.0.0"
+  port: 8000
+  reload: False
+  timeout_keep_alive: 120
+
+# Rate Limiting Configuration
+rate_limiting:
+  enabled: False    # Disable internal rate limiting for better throughput
+  default_limit: "500/minute"
+  trusted_proxies: []
+  storage_uri: "memory://"
+
+# Security Configuration
+security:
+  enabled: false
+  jwt_enabled: false
+  https_redirect: False
+  trusted_hosts: ["*"]
+
+# Crawler Configuration
+crawler:
+  memory_threshold_percent: 80.0  # More conservative memory limit
+  concurrency:
+    max_connections: 10           # Increase from default
+    max_requests_per_host: 5      # Increase from default
+  rate_limiter:
+    base_delay: [0.5, 1.0]      # Reduced delay between requests
+  timeouts:
+    stream_init: 20.0
+    batch_process: 180.0       # 3 minutes for batch processing
+  cache:
+    enabled: true
+    ttl: 86400                 # 24 hours in seconds
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Observability Configuration
+observability:
+  prometheus:
+    enabled: True
+    endpoint: "/metrics"
+  health_check:
+    endpoint: "/health"
+
+# Browser Configuration
+browser:
+  default_args:
+    - "--disable-gpu"
+    - "--disable-dev-shm-usage"
+    - "--disable-setuid-sandbox"
+    - "--no-sandbox"
+    - "--disable-accelerated-2d-canvas"
+    - "--disable-extensions"
+  headless: true
+  disable_images: true
+  disable_css: false
+  disable_javascript: false
