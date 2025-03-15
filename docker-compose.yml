@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  crawl-worker:
+    image: crawl4ai
+    platform: linux/amd64  # Or linux/arm64 depending on your server architecture
+    container_name: crawl-worker-2
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # LLM Configuration
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # Resource Configuration
+      - CONCURRENCY=3
+      - MAX_MEMORY_THRESHOLD=80
+    volumes:
+      - ./custom-config.yml:/app/config.yml
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+    # For production, consider adding healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
